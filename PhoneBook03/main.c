@@ -22,47 +22,139 @@ int n = 0;
 
 char delim[] = " ";
 
-void add();
-void find();
+void add(char* name, char* number);
+void find(char* name);
 void status();
-void _remove();
-void load();
-void save();
+void _remove(char* name);
+void load(char* fileName);
+void save(char* fileName);
 int search(char* name);
 void init_directory();
 int read_line(char str[], int limit);
+void process_command();
+void reallocate();
 
 // 메인함수
 int main(void)
 {
-    init_dirctory();
+    init_directory();
     process_command();
 
-    char command[BUFFER_SIZE];
+    system("pause");
+    return EXIT_SUCCESS;
+}
+
+void reallocate()
+{
+    int i;
+
+    capacity *= 2;
+    char** tmp1 = (char**)malloc(capacity * sizeof(char*));
+    char** tmp2 = (char**)malloc(capacity * sizeof(char*));
+
+    for (i = 0; i < n; i++)
+    {
+        tmp1[i] = names[i];
+        tmp2[i] = numbers[i];
+    }
+    free(names);
+    free(numbers);
+
+    names = tmp1;
+    numbers = tmp2;
+}
+
+void process_command()
+{
+    char command_line[BUFFER_SIZE];
+    char* command, * argument1, * argument2;
 
     while (1)
     {
         printf("$ ");
-        scanf("%s", command);
+
+        if (read_line(command_line, BUFFER_SIZE) <= 0)
+        {
+            continue;
+        }
+
+        command = strtok(command_line, delim);
+
+        if (command == NULL)
+        {
+            continue;
+        }
 
         if (strcmp(command, "read") == 0)
-            load();
-        else if (strcmp(command, "add") == 0)
-            add();
-        else if (strcmp(command, "find") == 0)
-            find();
-        else if (strcmp(command, "status") == 0)
-            status();
-        else if (strcmp(command, "delete") == 0)
-            _remove();
-        else if (strcmp(command, "save") == 0)
-            save();
-        else if (strcmp(command, "exit") == 0)
-            break;
-    }
+        {
+            argument1 = strtok(NULL, delim);
+            if (argument1 == NULL)
+            {
+                printf("File name required.\n");
+                continue;
+            }
+            load(argument1);
+        }
 
-    system("pause");
-    return EXIT_SUCCESS;
+        else if (strcmp(command, "add") == 0)
+        {
+            argument1 = strtok(NULL, delim);
+            argument2 = strtok(NULL, delim);
+
+            if (argument1 == NULL || argument2 == NULL)
+            {
+                printf("Invalid arguments.\n");
+                continue;
+            }
+            add(argument1, argument2);
+            printf("%s was added successfully.\n", argument1);
+        }
+
+        else if (strcmp(command, "find") == 0)
+        {
+            argument1 = strtok(NULL, delim);
+            if (argument1 == NULL)
+            {
+                printf("Invalid arguments.\n");
+                continue;
+            }
+            find(argument1);
+        }
+
+        else if (strcmp(command, "status") == 0)
+        {
+            status();
+        }
+        
+        else if (strcmp(command, "delete") == 0)
+        {
+            argument1 = strtok(NULL, delim);
+            if (argument1 == NULL)
+            {
+                printf("Invalid arguments.\n");
+                continue;
+            }
+            _remove(argument1);
+        }
+
+        else if (strcmp(command, "save") == 0)
+        {
+            argument1 = strtok(NULL, delim);
+            argument2 = strtok(NULL, delim);
+
+            if (argument1 == NULL || strcmp("as", argument1) != 0 || argument2 == NULL)
+            {
+                printf("Invalid command format.\n");
+                continue;
+            }
+            save(argument2);
+        }
+
+        else if (strcmp(command, "exit") == 0)
+        {
+            break;
+        }
+    }
 }
 
 void init_directory()
@@ -85,13 +177,10 @@ int read_line(char str[], int limit)
     return i;
 }
 
-void load()
+void load(char *fileName)
 {
-    char fileName[BUFFER_SIZE];
     char buf1[BUFFER_SIZE];
     char buf2[BUFFER_SIZE];
-
-    scanf("%s", fileName);
 
     FILE* fp = fopen(fileName, "r");
     if (fp == NULL)
@@ -103,44 +192,38 @@ void load()
     while ((fscanf(fp, "%s", buf1) != EOF))
     {
         fscanf(fp, "%s", buf2);
-        names[n] = strdup(buf1);
-        numbers[n] = strdup(buf2);
-        n++;
+        add(buf1, buf2);
     }
     fclose(fp);
 }
 
-void add()
+void add(char*name, char*number)
 {
-    char buf1[BUFFER_SIZE], buf2[BUFFER_SIZE];
-
-    scanf("%s", buf1);
-    scanf("%s", buf2);
+    if (n >= capacity)
+    {
+        reallocate();
+    }
 
     int i = n - 1;
-    while (i >= 0 && strcmp(names[i], buf1) > 0)
+    while (i >= 0 && strcmp(names[i], name) > 0)
     {
         names[i + 1] = names[i];
         numbers[i + 1] = numbers[i];
         i--;
     }
-    names[i + 1] = strdup(buf1);
-    numbers[i + 1] = strdup(buf2);
-    n++;
+    names[i + 1] = strdup(name);
+    numbers[i + 1] = strdup(number);
 
-    printf("%s was added successfully.\n", buf1);
+    n++;
 }
 
-void find()
+void find(char* name)
 {
-    char buf[BUFFER_SIZE];
-    scanf("%s", buf);
-
-    int index = search(buf);
+    int index = search(name);
 
     if (index == -1)
     {
-        printf("No person named '%s' exists.\n", buf);
+        printf("No person named '%s' exists.\n", name);
     }
     else
     {
@@ -171,39 +254,29 @@ void status()
     printf("Total %d person.\n", n);
 }
 
-void _remove()
+void _remove(char*name)
 {
-    char buf[BUFFER_SIZE];
-
-    scanf("%s", buf);
-
-    int index = search(buf);
-    if (index == -1)
+    int i = search(name);
+    if (i == -1)
     {
-        printf("No person named '%s' exists.\n", buf);
+        printf("No person named '%s' exists.\n", name);
         return;
     }
 
-    int j = index;
+    int j = i;
     for (; j < n - 1; j++)
     {
         names[j] = names[j + 1];
         numbers[j] = numbers[j + 1];
     }
     n--;
-    printf("'%s' was deleted successfully. \n", buf);
+    printf("'%s' was deleted successfully. \n", name);
 
 }
 
-void save()
+void save(char* fileName)
 {
     int i;
-    char fileName[BUFFER_SIZE];
-    char tmp[BUFFER_SIZE];
-
-    scanf("%s", tmp);
-    scanf("%s", fileName);
-
     FILE* fp = fopen(fileName, "w");
     if (fp == NULL)
     {
